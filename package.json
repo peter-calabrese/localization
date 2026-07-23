@@ -1,0 +1,30 @@
+{
+	"name": "translator",
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"dev": "tsx watch --env-file=.env.local src/index.ts",
+		"build": "tsdown",
+		"start": "node dist/index.js",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@types/express": "^5.0.6",
+		"@types/node": "^26.1.1",
+		"tsdown": "^0.22.13",
+		"tsx": "^4.23.1",
+		"typescript": "^7.0.2"
+	},
+	"dependencies": {
+		"@actions/core": "^3.0.1"
+	}
+}

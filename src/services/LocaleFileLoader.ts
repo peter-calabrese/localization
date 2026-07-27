@@ -14,9 +14,11 @@ export interface TranslationFile {
 }
 
 export class TranslationFileLoader {
-    private readonly sourceRoot = path.resolve(
-        "src/locales/en",
-    );
+    private readonly sourceRoot: string;
+
+    constructor(sourceRoot = "src/locales/en") {
+        this.sourceRoot = path.resolve(sourceRoot);
+    }
 
     async load(filePath: string): Promise<TranslationFile> {
         const absoluteFilePath = path.resolve(filePath);
@@ -24,7 +26,21 @@ export class TranslationFileLoader {
             this.sourceRoot,
             absoluteFilePath,
         );
-        const rawFile = await readFile(filePath, "utf8");
+
+        if (
+            relativePath.startsWith(`..${path.sep}`) ||
+            path.isAbsolute(relativePath)
+        ) {
+            throw new Error(
+                `Translation file must be inside ${this.sourceRoot}`,
+            );
+        }
+
+        if (!relativePath.endsWith(".json")) {
+            throw new Error("Translation file must be a JSON file");
+        }
+
+        const rawFile = await readFile(absoluteFilePath, "utf8");
 
         const namespace = relativePath
             .replace(/\.json$/, "")

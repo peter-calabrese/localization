@@ -1,8 +1,9 @@
 import { createRequire } from "node:module";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import "os";
+import * as os$1 from "os";
 import os, { EOL } from "os";
+import * as crypto from "crypto";
 import * as fs from "fs";
 import { constants, promises } from "fs";
 import * as path$1 from "path";
@@ -185,6 +186,7 @@ var Translator = class {
 	}
 	async translate(locales) {
 		await this.cache.load();
+		const translatedPaths = /* @__PURE__ */ new Set();
 		for (const { namespace, data } of locales) {
 			const flattened = this.flattener(data);
 			for (const language of this.azureTranslator.languages) {
@@ -207,6 +209,7 @@ var Translator = class {
 				}
 				await mkdir(path.dirname(outputPath), { recursive: true });
 				await writeFile(outputPath, `${JSON.stringify(output, null, 2)}\n`, "utf8");
+				translatedPaths.add(path.relative(process.cwd(), outputPath).split(path.sep).join("/"));
 				entriesToTranslate.forEach((entry) => {
 					this.cache.markTranslated(namespace, entry, language);
 				});
@@ -214,6 +217,7 @@ var Translator = class {
 			this.cache.removeMissingKeys(namespace, flattened);
 			await this.cache.save();
 		}
+		return [...translatedPaths].sort();
 	}
 	copyExistingTranslations(source, existing, flattened) {
 		let result = structuredClone(source);
@@ -269,15 +273,112 @@ var Translator = class {
 };
 //#endregion
 //#region src/config/container.ts
-function createContainer(configuredLocalesRoot = process.env.LOCALES_ROOT ?? "src/locales") {
+function createContainer(configuredLocalesRoot = process.env.LOCALES_ROOT ?? "src/locales", targetLanguages = ["es", "fr"]) {
 	const localesRoot = path.resolve(configuredLocalesRoot);
 	const sourceRoot = path.join(localesRoot, "en");
-	const azureTranslator = new AzureTranslator(["es", "fr"]);
+	const azureTranslator = new AzureTranslator(targetLanguages);
 	return {
 		azureTranslator,
 		translationFileLoader: new TranslationFileLoader(sourceRoot),
 		translator: new Translator(azureTranslator, void 0, localesRoot)
 	};
+}
+//#endregion
+//#region node_modules/.pnpm/@actions+core@3.0.1/node_modules/@actions/core/lib/utils.js
+/**
+* Sanitizes an input into a string so it can be passed into issueCommand safely
+* @param input input to sanitize into a string
+*/
+function toCommandValue(input) {
+	if (input === null || input === void 0) return "";
+	else if (typeof input === "string" || input instanceof String) return input;
+	return JSON.stringify(input);
+}
+//#endregion
+//#region node_modules/.pnpm/@actions+core@3.0.1/node_modules/@actions/core/lib/command.js
+/**
+* Issues a command to the GitHub Actions runner
+*
+* @param command - The command name to issue
+* @param properties - Additional properties for the command (key-value pairs)
+* @param message - The message to include with the command
+* @remarks
+* This function outputs a specially formatted string to stdout that the Actions
+* runner interprets as a command. These commands can control workflow behavior,
+* set outputs, create annotations, mask values, and more.
+*
+* Command Format:
+*   ::name key=value,key=value::message
+*
+* @example
+* ```typescript
+* // Issue a warning annotation
+* issueCommand('warning', {}, 'This is a warning message');
+* // Output: ::warning::This is a warning message
+*
+* // Set an environment variable
+* issueCommand('set-env', { name: 'MY_VAR' }, 'some value');
+* // Output: ::set-env name=MY_VAR::some value
+*
+* // Add a secret mask
+* issueCommand('add-mask', {}, 'secretValue123');
+* // Output: ::add-mask::secretValue123
+* ```
+*
+* @internal
+* This is an internal utility function that powers the public API functions
+* such as setSecret, warning, error, and exportVariable.
+*/
+function issueCommand(command, properties, message) {
+	const cmd = new Command(command, properties, message);
+	process.stdout.write(cmd.toString() + os$1.EOL);
+}
+const CMD_STRING = "::";
+var Command = class {
+	constructor(command, properties, message) {
+		if (!command) command = "missing.command";
+		this.command = command;
+		this.properties = properties;
+		this.message = message;
+	}
+	toString() {
+		let cmdStr = CMD_STRING + this.command;
+		if (this.properties && Object.keys(this.properties).length > 0) {
+			cmdStr += " ";
+			let first = true;
+			for (const key in this.properties) if (this.properties.hasOwnProperty(key)) {
+				const val = this.properties[key];
+				if (val) {
+					if (first) first = false;
+					else cmdStr += ",";
+					cmdStr += `${key}=${escapeProperty(val)}`;
+				}
+			}
+		}
+		cmdStr += `${CMD_STRING}${escapeData(this.message)}`;
+		return cmdStr;
+	}
+};
+function escapeData(s) {
+	return toCommandValue(s).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+}
+function escapeProperty(s) {
+	return toCommandValue(s).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A").replace(/:/g, "%3A").replace(/,/g, "%2C");
+}
+//#endregion
+//#region node_modules/.pnpm/@actions+core@3.0.1/node_modules/@actions/core/lib/file-command.js
+function issueFileCommand(command, message) {
+	const filePath = process.env[`GITHUB_${command}`];
+	if (!filePath) throw new Error(`Unable to find environment variable for file command ${command}`);
+	if (!fs.existsSync(filePath)) throw new Error(`Missing file at path: ${filePath}`);
+	fs.appendFileSync(filePath, `${toCommandValue(message)}${os$1.EOL}`, { encoding: "utf8" });
+}
+function prepareKeyValueMessage(key, value) {
+	const delimiter = `ghadelimiter_${crypto.randomUUID()}`;
+	const convertedValue = toCommandValue(value);
+	if (key.includes(delimiter)) throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
+	if (convertedValue.includes(delimiter)) throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
+	return `${key}<<${delimiter}${os$1.EOL}${convertedValue}${os$1.EOL}${delimiter}`;
 }
 //#endregion
 //#region node_modules/.pnpm/tunnel@0.0.6/node_modules/tunnel/lib/tunnel.js
@@ -16467,15 +16568,26 @@ function getMultilineInput(name, options) {
 	if (options && options.trimWhitespace === false) return inputs;
 	return inputs.map((input) => input.trim());
 }
+/**
+* Sets the value of an output.
+*
+* @param     name     name of the output to set
+* @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
+*/
+function setOutput(name, value) {
+	if (process.env["GITHUB_OUTPUT"] || "") return issueFileCommand("OUTPUT", prepareKeyValueMessage(name, value));
+	process.stdout.write(os$1.EOL);
+	issueCommand("set-output", { name }, toCommandValue(value));
+}
 //#endregion
 //#region src/index.ts
 async function main() {
 	const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
 	process.chdir(workspace);
-	const { translationFileLoader, translator } = createContainer(getInput("locales-root") || process.env.LOCALES_ROOT || "src/locales");
+	const { translationFileLoader, translator } = createContainer(getInput("locales-root") || process.env.LOCALES_ROOT || "src/locales", getMultilineInput("languages", { required: true }).flatMap((value) => value.split(/[\s,]+/)).filter(Boolean));
 	const files = getMultilineInput("files", { required: true });
 	const loadedFile = await translationFileLoader.loadMany(files);
-	await translator.translate(loadedFile);
+	setOutput("translated-paths", (await translator.translate(loadedFile)).join("\n"));
 }
 await main();
 //#endregion

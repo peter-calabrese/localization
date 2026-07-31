@@ -10,7 +10,13 @@ async function main(){
     const localesRoot = core.getInput("locales-root") ||
         process.env.LOCALES_ROOT ||
         "src/locales";
-    const {translationFileLoader, translator} = createContainer(localesRoot);
+    const languages = core.getMultilineInput("languages", {
+        required: true,
+    }).flatMap((value) => value.split(/[\s,]+/)).filter(Boolean);
+    const {translationFileLoader, translator} = createContainer(
+        localesRoot,
+        languages,
+    );
 
     const files = core.getMultilineInput("files", {
         required: true,
@@ -19,7 +25,9 @@ async function main(){
 
     const loadedFile = await translationFileLoader.loadMany(files)
 
-    await translator.translate(loadedFile)
+    const translatedPaths = await translator.translate(loadedFile)
+
+    core.setOutput("translated-paths", translatedPaths.join("\n"));
 
 }
 

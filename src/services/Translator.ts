@@ -22,8 +22,9 @@ export class Translator {
         private readonly localesRoot = path.resolve("src/locales"),
     ) {}
 
-    async translate(locales: TranslationFile[]): Promise<void> {
+    async translate(locales: TranslationFile[]): Promise<string[]> {
         await this.cache.load();
+        const translatedPaths = new Set<string>();
 
         for (const {namespace, data} of locales) {
             const flattened = this.flattener(data);
@@ -94,6 +95,11 @@ export class Translator {
                     `${JSON.stringify(output, null, 2)}\n`,
                     "utf8",
                 );
+                translatedPaths.add(
+                    path.relative(process.cwd(), outputPath)
+                        .split(path.sep)
+                        .join("/"),
+                );
 
                 entriesToTranslate.forEach((entry) => {
                     this.cache.markTranslated(
@@ -107,6 +113,8 @@ export class Translator {
             this.cache.removeMissingKeys(namespace, flattened);
             await this.cache.save();
         }
+
+        return [...translatedPaths].sort();
     }
 
     private copyExistingTranslations(

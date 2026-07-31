@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Check out application repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -31,6 +31,8 @@ jobs:
         run: |
           locales_root="${CONFIGURED_LOCALES_ROOT:-src/locales}"
           source_root="${locales_root}/en"
+
+          echo "locales_root=$locales_root" >> "$GITHUB_OUTPUT"
 
           if [[ ! -d "$source_root" ]]; then
             echo "::error::Locale source directory does not exist: $source_root"
@@ -88,18 +90,20 @@ jobs:
             translation-cache-${{ runner.os }}-
 
       - name: Generate translations
+        id: translate
         if: steps.locales.outputs.has_files == 'true'
         uses: peter-calabrese/localization@v1
         with:
           files: ${{ steps.locales.outputs.files }}
+          locales-root: ${{ steps.locales.outputs.locales_root }}
+          languages: ${{ vars.TRANSLATION_LANGUAGES || 'es,fr' }}
         env:
-          LOCALES_ROOT: ${{ vars.LOCALES_ROOT || 'src/locales' }}
           AZURE_TRANSLATOR_KEY: ${{ secrets.AZURE_TRANSLATOR_KEY }}
           AZURE_TRANSLATOR_REGION: ${{ secrets.AZURE_TRANSLATOR_REGION }}
 
       - name: Open translation pull request
         if: steps.locales.outputs.has_files == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: automation/update-translations
@@ -111,5 +115,4 @@ jobs:
 
             Source commit: ${{ github.sha }}
           add-paths: |
-            ${{ vars.LOCALES_ROOT || 'src/locales' }}/es/**
-            ${{ vars.LOCALES_ROOT || 'src/locales' }}/fr/**
+            ${{ steps.translate.outputs.translated-paths }}

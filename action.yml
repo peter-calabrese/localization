@@ -1,0 +1,11 @@
+name: Translate locale files
+description: Translate English locale files
+
+inputs:
+  files:
+    description: Locale JSON files to translate
+    required: true
+
+runs:
+  using: node24
+  main: dist/index.js

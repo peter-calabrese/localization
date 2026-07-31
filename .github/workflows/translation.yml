@@ -82,7 +82,7 @@ jobs:
 
       - name: Restore translation cache
         if: steps.locales.outputs.has_files == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .translation-cache
           key: translation-cache-${{ runner.os }}-${{ github.run_id }}

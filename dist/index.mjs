@@ -80,7 +80,7 @@ var TranslationFileLoader = class {
 	async load(filePath) {
 		const absoluteFilePath = path.resolve(filePath);
 		const relativePath = path.relative(this.sourceRoot, absoluteFilePath);
-		if (relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) throw new Error(`Translation file must be inside ${this.sourceRoot}`);
+		if (relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) throw new Error(`Translation file ${absoluteFilePath} must be inside ${this.sourceRoot}`);
 		if (!relativePath.endsWith(".json")) throw new Error("Translation file must be a JSON file");
 		const rawFile = await readFile(absoluteFilePath, "utf8");
 		return {
@@ -269,8 +269,8 @@ var Translator = class {
 };
 //#endregion
 //#region src/config/container.ts
-function createContainer() {
-	const localesRoot = path.resolve(process.env.LOCALES_ROOT ?? "src/locales");
+function createContainer(configuredLocalesRoot = process.env.LOCALES_ROOT ?? "src/locales") {
+	const localesRoot = path.resolve(configuredLocalesRoot);
 	const sourceRoot = path.join(localesRoot, "en");
 	const azureTranslator = new AzureTranslator(["es", "fr"]);
 	return {
@@ -16472,7 +16472,7 @@ function getMultilineInput(name, options) {
 async function main() {
 	const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
 	process.chdir(workspace);
-	const { translationFileLoader, translator } = createContainer();
+	const { translationFileLoader, translator } = createContainer(getInput("locales-root") || process.env.LOCALES_ROOT || "src/locales");
 	const files = getMultilineInput("files", { required: true });
 	const loadedFile = await translationFileLoader.loadMany(files);
 	await translator.translate(loadedFile);

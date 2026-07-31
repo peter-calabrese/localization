@@ -32,7 +32,8 @@ export class TranslationFileLoader {
             path.isAbsolute(relativePath)
         ) {
             throw new Error(
-                `Translation file must be inside ${this.sourceRoot}`,
+                `Translation file ${absoluteFilePath} must be inside ` +
+                `${this.sourceRoot}`,
             );
         }
 

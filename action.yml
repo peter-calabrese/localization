@@ -5,6 +5,10 @@ inputs:
   files:
     description: Locale JSON files to translate
     required: true
+  locales-root:
+    description: Root directory containing language folders
+    required: false
+    default: src/locales
 
 runs:
   using: node24

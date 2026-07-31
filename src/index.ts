@@ -7,7 +7,10 @@ async function main(){
 
     process.chdir(workspace);
 
-    const {translationFileLoader, translator} = createContainer();
+    const localesRoot = core.getInput("locales-root") ||
+        process.env.LOCALES_ROOT ||
+        "src/locales";
+    const {translationFileLoader, translator} = createContainer(localesRoot);
 
     const files = core.getMultilineInput("files", {
         required: true,

@@ -1,13 +1,24 @@
 import {AzureTranslator} from "../services/AzureTranslator.js";
 import {TranslationFileLoader} from "../services/LocaleFileLoader.js";
 import {Translator} from "../services/Translator.js";
+import path from "node:path";
 
-const azureTranslator = new AzureTranslator(['es','fr']);
-const translationFileLoader = new TranslationFileLoader()
-const translator = new Translator(azureTranslator)
+export function createContainer() {
+    const localesRoot = path.resolve(
+        process.env.LOCALES_ROOT ?? "src/locales",
+    );
+    const sourceRoot = path.join(localesRoot, "en");
+    const azureTranslator = new AzureTranslator(["es", "fr"]);
+    const translationFileLoader = new TranslationFileLoader(sourceRoot);
+    const translator = new Translator(
+        azureTranslator,
+        undefined,
+        localesRoot,
+    );
 
-export const container ={
-    azureTranslator,
-    translationFileLoader,
-    translator
+    return {
+        azureTranslator,
+        translationFileLoader,
+        translator,
+    };
 }
